@@ -63,7 +63,7 @@
             font-size: 0.9rem;
         }
 
-        input[type="date"] {
+        input[type="date"], input[type="text"] {
             width: 100%;
             padding: 10px;
             border: 2px solid #dfe1e6;
@@ -74,7 +74,7 @@
             transition: border-color 0.2s;
         }
 
-        input[type="date"]:focus {
+        input:focus {
             border-color: var(--primary-blue);
         }
 
@@ -147,12 +147,13 @@
         .copy-btn {
             background: rgba(0,0,0,0.1);
             border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
+            padding: 10px 18px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             font-weight: bold;
             color: inherit;
+            transition: all 0.2s;
         }
 
         .copy-btn:hover { background: rgba(0,0,0,0.2); }
@@ -200,6 +201,11 @@
         <input type="date" id="targetDate">
     </div>
 
+    <div class="input-group">
+        <label for="shiftReason">Reason for Amendment (Optional)</label>
+        <input type="text" id="shiftReason" placeholder="e.g., Client requested delay, Resource conflict...">
+    </div>
+
     <button class="calculate-btn" onclick="calculateShift()">Calculate Shift</button>
     <div id="validationError" class="error-msg">Please fill in all dates correctly.</div>
 
@@ -209,7 +215,7 @@
             <div class="new-date-container">
                 <span class="new-date-label">New Project Start Date</span>
                 <span id="newStartDateDisplay" class="new-date-value"></span>
-                <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy Date</button>
+                <button class="copy-btn" id="copyBtn" onclick="copyDetailedNote()">Copy Detailed Note</button>
             </div>
         </div>
 
@@ -226,12 +232,14 @@
         const currentStartInput = document.getElementById('currentStart').value;
         const currentEndInput = document.getElementById('currentEnd').value;
         const targetDateInput = document.getElementById('targetDate').value;
+        const shiftReason = document.getElementById('shiftReason').value || "Timeline synchronization for Opening Balance call.";
+        
         const errorMsg = document.getElementById('validationError');
         const resultArea = document.getElementById('resultArea');
 
         // 2. Validation
         if (!currentStartInput || !currentEndInput || !targetDateInput) {
-            showError("All fields are required.");
+            showError("Please provide all three dates.");
             return;
         }
 
@@ -247,39 +255,55 @@
         errorMsg.style.display = 'none';
 
         // 3. Logic
-        // Calculate difference in days between Current End and Target Call Date
         const diffInMs = target.getTime() - end.getTime();
         const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
 
-        // Subtract that difference from the Current Start Date (Logic: Start + Diff = New Start)
-        // If we need to move the end 10 days later, we move the start 10 days later.
         const newStart = new Date(start);
         newStart.setDate(newStart.getDate() + diffInDays);
 
-        // 4. Formatting Result
-        const formattedNewStart = newStart.toISOString().split('T')[0];
+        // 4. Formatting
         const displayDate = newStart.toLocaleDateString('en-US', { 
             year: 'numeric', month: 'long', day: 'numeric' 
         });
+        
+        // Build the Audit Note
+        const auditNote = `
+📅 TIMELINE AMENDMENT SUMMARY
+------------------------------------------
+PURPOSE: Aligning project schedule with the Opening Balance Call.
+REASON: ${shiftReason}
+
+ORIGINAL TIMELINE:
+- Start Date: ${start.toLocaleDateString()}
+- End Date: ${end.toLocaleDateString()}
+
+ADJUSTMENT:
+- Target Call Date: ${target.toLocaleDateString()}
+- Shift Applied: ${diffInDays > 0 ? '+' : ''}${diffInDays} days
+
+NEW CALCULATED START DATE: ${displayDate}
+------------------------------------------
+Generated on: ${new Date().toLocaleString()}
+        `.trim();
 
         // 5. Update UI
         resultArea.style.display = 'block';
         const metricCard = document.getElementById('metricCard');
         const daysText = document.getElementById('daysText');
         const newStartDateDisplay = document.getElementById('newStartDateDisplay');
+        const copyBtn = document.getElementById('copyBtn');
 
         newStartDateDisplay.innerText = displayDate;
-        newStartDateDisplay.dataset.raw = formattedNewStart; // Store for copying
+        copyBtn.dataset.fullNote = auditNote; // Save note to button dataset
 
         if (diffInDays >= 0) {
             metricCard.className = 'metric-card positive';
-            daysText.innerText = `Project needs to shift forward by ${diffInDays} days`;
+            daysText.innerText = `Project moves forward by ${diffInDays} days`;
         } else {
             metricCard.className = 'metric-card negative';
-            daysText.innerText = `Project needs to shift backward by ${Math.abs(diffInDays)} days`;
+            daysText.innerText = `Project moves backward by ${Math.abs(diffInDays)} days`;
         }
 
-        // Scroll to result on small screens
         resultArea.scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -290,15 +314,20 @@
         document.getElementById('resultArea').style.display = 'none';
     }
 
-    function copyToClipboard() {
-        const dateRaw = document.getElementById('newStartDateDisplay').dataset.raw;
+    function copyDetailedNote() {
+        const note = document.getElementById('copyBtn').dataset.fullNote;
         const btn = document.getElementById('copyBtn');
         
-        navigator.clipboard.writeText(dateRaw).then(() => {
+        navigator.clipboard.writeText(note).then(() => {
             const originalText = btn.innerText;
-            btn.innerText = "✓ Copied!";
+            btn.innerText = "✓ Note Copied!";
+            btn.style.backgroundColor = "#36b37e";
+            btn.style.color = "white";
+            
             setTimeout(() => {
                 btn.innerText = originalText;
+                btn.style.backgroundColor = "";
+                btn.style.color = "";
             }, 2000);
         });
     }
