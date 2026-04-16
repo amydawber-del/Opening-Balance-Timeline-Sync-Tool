@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opening Balance Timeline Sync Tool</title>
+    <style>
+        :root {
+            --primary-blue: #0052cc;
+            --bg-gray: #f4f5f7;
+            --text-dark: #172b4d;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --success-green: #36b37e;
+            --error-red: #de350b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 0.5rem 0;
+            color: var(--primary-blue);
+        }
+
+        p.subtitle {
+            font-size: 0.9rem;
+            color: #6b778c;
+            margin: 0;
+        }
+
+        .input-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dfe1e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="date"]:focus {
+            border-color: var(--primary-blue);
+        }
+
+        button.calculate-btn {
+            width: 100%;
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: opacity 0.2s;
+        }
+
+        button.calculate-btn:hover {
+            opacity: 0.9;
+        }
+
+        #resultArea {
+            display: none;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #ebecf0;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .metric-card {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .metric-card.positive { background-color: #e3fcef; color: #006644; border: 1px solid #36b37e; }
+        .metric-card.negative { background-color: #ffebe6; color: #bf2600; border: 1px solid #de350b; }
+
+        .days-diff {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .new-date-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .new-date-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
+
+        .new-date-value {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .copy-btn {
+            background: rgba(0,0,0,0.1);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: inherit;
+        }
+
+        .copy-btn:hover { background: rgba(0,0,0,0.2); }
+
+        .instructions {
+            background-color: #f4f5f7;
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #505f79;
+        }
+
+        .instructions strong { color: var(--text-dark); }
+
+        .error-msg {
+            color: var(--error-red);
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Sync Timeline</h1>
+        <p class="subtitle">Align project end with Opening Balance call</p>
+    </header>
+
+    <div class="input-group">
+        <label for="currentStart">Current Project Start Date</label>
+        <input type="date" id="currentStart">
+    </div>
+
+    <div class="input-group">
+        <label for="currentEnd">Current Last Task Date</label>
+        <input type="date" id="currentEnd">
+    </div>
+
+    <div class="input-group">
+        <label for="targetDate">Opening Balance Call Date (Target)</label>
+        <input type="date" id="targetDate">
+    </div>
+
+    <button class="calculate-btn" onclick="calculateShift()">Calculate Shift</button>
+    <div id="validationError" class="error-msg">Please fill in all dates correctly.</div>
+
+    <div id="resultArea">
+        <div id="metricCard" class="metric-card">
+            <div id="daysText" class="days-diff"></div>
+            <div class="new-date-container">
+                <span class="new-date-label">New Project Start Date</span>
+                <span id="newStartDateDisplay" class="new-date-value"></span>
+                <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy Date</button>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <strong>Rocketlane Steps:</strong><br>
+            Project Plan &rarr; Shift Dates &rarr; Shift to a specific date &rarr; Enter this new start date.
+        </div>
+    </div>
+</div>
+
+<script>
+    function calculateShift() {
+        // 1. Get Values
+        const currentStartInput = document.getElementById('currentStart').value;
+        const currentEndInput = document.getElementById('currentEnd').value;
+        const targetDateInput = document.getElementById('targetDate').value;
+        const errorMsg = document.getElementById('validationError');
+        const resultArea = document.getElementById('resultArea');
+
+        // 2. Validation
+        if (!currentStartInput || !currentEndInput || !targetDateInput) {
+            showError("All fields are required.");
+            return;
+        }
+
+        const start = new Date(currentStartInput);
+        const end = new Date(currentEndInput);
+        const target = new Date(targetDateInput);
+
+        if (end <= start) {
+            showError("Last Task Date must be after the Project Start Date.");
+            return;
+        }
+
+        errorMsg.style.display = 'none';
+
+        // 3. Logic
+        // Calculate difference in days between Current End and Target Call Date
+        const diffInMs = target.getTime() - end.getTime();
+        const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+
+        // Subtract that difference from the Current Start Date (Logic: Start + Diff = New Start)
+        // If we need to move the end 10 days later, we move the start 10 days later.
+        const newStart = new Date(start);
+        newStart.setDate(newStart.getDate() + diffInDays);
+
+        // 4. Formatting Result
+        const formattedNewStart = newStart.toISOString().split('T')[0];
+        const displayDate = newStart.toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric' 
+        });
+
+        // 5. Update UI
+        resultArea.style.display = 'block';
+        const metricCard = document.getElementById('metricCard');
+        const daysText = document.getElementById('daysText');
+        const newStartDateDisplay = document.getElementById('newStartDateDisplay');
+
+        newStartDateDisplay.innerText = displayDate;
+        newStartDateDisplay.dataset.raw = formattedNewStart; // Store for copying
+
+        if (diffInDays >= 0) {
+            metricCard.className = 'metric-card positive';
+            daysText.innerText = `Project needs to shift forward by ${diffInDays} days`;
+        } else {
+            metricCard.className = 'metric-card negative';
+            daysText.innerText = `Project needs to shift backward by ${Math.abs(diffInDays)} days`;
+        }
+
+        // Scroll to result on small screens
+        resultArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showError(text) {
+        const errorMsg = document.getElementById('validationError');
+        errorMsg.innerText = text;
+        errorMsg.style.display = 'block';
+        document.getElementById('resultArea').style.display = 'none';
+    }
+
+    function copyToClipboard() {
+        const dateRaw = document.getElementById('newStartDateDisplay').dataset.raw;
+        const btn = document.getElementById('copyBtn');
+        
+        navigator.clipboard.writeText(dateRaw).then(() => {
+            const originalText = btn.innerText;
+            btn.innerText = "✓ Copied!";
+            setTimeout(() => {
+                btn.innerText = originalText;
+            }, 2000);
+        });
+    }
+</script>
+
+</body>
+</html>
